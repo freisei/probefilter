@@ -1,0 +1,101 @@
+component probebugtest """generates signals to test probe-input
+must be on a fast thread (base-thread)
+""";
+
+
+author "Stefan Freisei Muehlbacher, freisei@freisei.de";
+
+pin out bit probe-out;
+pin out bit version-00;
+
+pin in s32 motion-type-in;
+
+variable bool initdone;
+
+variable int call=0;
+pin out u32 callms=0;
+
+pin in u32 verbose;
+variable int oldverbose;
+
+pin in u32 testcase=0;
+
+// 50000ns Thread, 50us, 0.050 ms, 20calls per ms.
+variable int ms=20;
+
+variable bool motion_type_old;
+
+function _ nofp;
+license "GPL";
+;;
+
+
+FUNCTION(_) {
+    //init
+	if(initdone==false) {
+		// rtapi_set_msg_level(RTAPI_MSG_ALL);
+        rtapi_print_msg(RTAPI_MSG_INFO, "probebugtest init\n");
+
+        initdone=true;
+    }
+
+    if(testcase == 0) {
+
+        
+        // start at for type-5-move
+        // 0-500ms wait
+        // 500ms: trigger probe signals every 4ms 
+        // 2000ms stop
+
+        // stop at non-type5-move
+
+        if(motion_type_in == 5 || motion_type_in == 0) {
+
+            if(call <= 500*ms ) {
+                probe_out=false;
+            }
+
+            // flattering 10ms
+            if(call > 500*ms && call <= 2000*ms) {
+                if(call % (2*ms) == 0) {
+                    probe_out = !probe_out;
+                }
+            }
+
+            if(call > 2000*ms ) {
+                probe_out=false;
+            }
+        }
+
+        if(call > 2000*ms ) {
+            probe_out=false;
+        }
+
+        //reset call counter at motion-type change.
+        //if(motion_type_old != 5 && motion_type_in == 5)
+        //    call=0;
+
+    }
+
+    
+    
+    // renew old-values
+    motion_type_old = motion_type_in;
+
+
+
+    call++;
+    if(call > 3000*ms) {
+        call=0;
+    }
+    callms=call/ms;
+    
+
+    if(verbose != oldverbose) {
+        rtapi_set_msg_level(verbose);
+        oldverbose=verbose;
+    }
+  
+
+
+}

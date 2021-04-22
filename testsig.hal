@@ -1,0 +1,15 @@
+loadrt siggen names=testsig500,testsig5
+addf testsig500.update debug-thread
+setp testsig500.frequency 5
+
+addf testsig5.update debug-thread
+setp testsig5.frequency 0.5
+
+loadrt and2 names=AND_sig500and5
+addf AND_sig500and5 debug-thread
+net t1 testsig5.clock => AND_sig500and5.in0
+net a2 testsig500.clock => AND_sig500and5.in1
+
+net testsig5005 AND_sig500and5.out => probefilter.0.probe-in-0
+setp probefilter.0.ignorecalls-0 100
+

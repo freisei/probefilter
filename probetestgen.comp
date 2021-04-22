@@ -1,0 +1,168 @@
+component probetestgen """generates signals to test probefilter
+must be on a fast thread (base-thread)
+""";
+author "Stefan Freisei Muehlbacher, freisei@freisei.de";
+
+pin out bit probe-out-# [5];
+pin out bit version-00;
+
+variable bool initdone;
+
+variable int call=0;
+pin out u32 callms=0;
+
+pin in u32 verbose;
+variable int oldverbose;
+
+pin in u32 testcase=0;
+
+
+// 50000ns Thread, 50us, 0.050 ms, 20calls per ms.
+variable int ms=20;
+
+pin out s32 motion-type-out;
+
+function _ nofp;
+license "GPL";
+;;
+
+
+FUNCTION(_) {
+    //init
+	if(initdone==false) {
+		// rtapi_set_msg_level(RTAPI_MSG_ALL);
+        rtapi_print_msg(RTAPI_MSG_INFO, "probetestgen init\n");
+
+        initdone=true;
+    }
+
+    if(testcase == 0) {
+
+        // 0. simulate G38.2 Tool into laser, G38.4 Tool out of laser.
+        
+        // 2ms G38.2
+        // 30ms - probe up - flatter
+        // 90ms (60ms later) motion-type 0
+        // 150ms G38.4
+        // 500ms endflatter, probe down
+        // 560ms motion-type 0
+
+        if(call <= 20*ms ) {
+            probe_out(0)=false;
+        }
+
+        // flattering 10ms
+        if(call > 20*ms && call <= 500*ms) {
+            if(call % (10*ms) == 0) {
+                probe_out(0) = !probe_out(0);
+            }
+        }
+
+        if(call >= 500*ms ) {
+            probe_out(0)=false;
+        }
+
+        
+
+
+        if(call < 2*ms)
+            motion_type_out = 0;
+        if(call >= 2*ms && call < 90*ms)
+            motion_type_out = 5;
+        if(call >= 90*ms && call < 150*ms)
+            motion_type_out = 0;
+        if(call >= 150*ms && call < 560*ms)
+            motion_type_out = 5;
+        if(call >= 560*ms && call < 1500*ms)
+            motion_type_out = 0;
+    }
+
+
+    if(testcase == 1) {
+
+        // 1. simulate
+        //  .1 G38.2 Tool into laser,
+        //  .2 G0 out of laser. 
+        //  .3 G38.2 into laser. 
+
+        
+        // 2ms G38.2
+        // 30ms - probe up - flatter
+        // 90ms (60ms later) motion-type 0
+        // 120ms G0
+        // 300ms endflatter, probe down
+        // 400ms stop G0
+        // 500ms G38.2
+        // 530ms - probe up - flatter
+        // 590ms (60ms later) motion-type 0
+        // 620ms G0
+        // 900ms endflatter, probe down
+        
+
+        if(call <= 20*ms ) {
+            probe_out(0)=false;
+        }
+
+        // flattering 10ms 30-300ms
+        if(call > 20*ms && call <= 300*ms) {
+            if(call % (10*ms) == 0) {
+                probe_out(0) = !probe_out(0);
+            }
+        }
+        if(call == 300*ms ) {
+            probe_out(0)=false;
+        }
+
+        // flattering 10ms 530-900ms
+        if(call > 530*ms && call <= 900*ms) {
+            if(call % (10*ms) == 0) {
+                probe_out(0) = !probe_out(0);
+            }
+        }
+
+        if(call == 900*ms ) {
+            probe_out(0)=false;
+        }
+
+        
+
+        if(call < 2*ms)
+            motion_type_out = 0;
+        if(call >= 2*ms && call < 90*ms)
+            motion_type_out = 5;
+        if(call >= 90*ms && call < 120*ms)
+            motion_type_out = 0;
+        if(call >= 120*ms && call < 400*ms)
+            motion_type_out = 2;
+        if(call >= 400*ms && call < 500*ms)
+            motion_type_out = 0;
+        
+        if(call >= 500*ms && call < 590*ms)
+            motion_type_out = 5;
+        if(call >= 590*ms && call < 620*ms)
+            motion_type_out = 0;
+        if(call >= 620*ms && call < 1200*ms)
+            motion_type_out = 2;
+        if(call >= 1200*ms && call < 1501*ms)
+            motion_type_out = 0;
+        
+    }
+
+
+
+
+    call++;
+    if(call > 1500*ms) {
+        call=0;
+    }
+    callms=call/ms;
+    
+
+    if(verbose != oldverbose) {
+        rtapi_set_msg_level(verbose);
+        oldverbose=verbose;
+    }
+  
+
+
+}

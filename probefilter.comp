@@ -1,0 +1,148 @@
+component probefilter """filters and debounce probe inputs
+""";
+author "Stefan Freisei Muehlbacher, freisei@freisei.de";
+
+pin in bit probe-in-# [5];
+
+pin in bit active-# [5];
+
+pin in s32 motion-type-in;
+
+pin out bit probe-out-# [5];
+
+pin out bit type5-out-# [5];
+// how long are signalchanges ignored after first signalchange.
+pin in u32 ignorecalls-# [5]; // = 100;
+
+pin out bit version-03;
+
+variable bool initdone;
+variable int state;
+variable bool old_in[5];
+// variable int ignores[5];
+pin out u32 ignores-# [5];
+
+pin in u32 verbose;
+variable int oldverbose;
+
+
+pin out bit probet5single;
+pin out bit t5changed;
+
+variable bool motion_type_old;
+
+
+
+function _ nofp;
+license "GPL";
+;;
+
+
+FUNCTION(_) {
+
+
+    //init
+	if(initdone==false) {
+		//rtapi_set_msg_level(RTAPI_MSG_ALL);
+        rtapi_print_msg(RTAPI_MSG_INFO, "probefilter init\n");
+        initdone=true;
+    }
+
+    // bei singletrip down trotzdem zulassen? nur ein weiteres up nicht.
+
+    // zwei filterarten nötig: 
+    // - einmal singletrip wärend type-5-moves. 
+    // - dann fast-react-debounce (ignorecalls-filter) für flute/messungen bzw. ausfahrten.
+
+    // kleine "störsingal" komponente, die probetrips bei T5 auslöst. (zum BUG-Fixieren)
+    
+
+    // wechsel bei motion-type5 nur einmal. (TODO: probe-tripped-error auch bei untrip?)
+
+
+    // wechsel nur bei motion-type==5
+    // alternativ wechsel nach TRUE nur bei motion-type==5? TODO bleibt linuxcnc bei probe-untrip stehen?
+    // - wer ist schneller?
+    // bei G38.2 und probe ist noch true, weil nach letzten G38.2 keine type-5-moves gemacht wurden.
+    // mgl. "probe already tripped" fehler.
+    // erledigt sich evtl. weil zwischenzeitlich per M134 die Probe wieder für alle aktiv ist.
+    // oder M133 = Reset probe-state.
+
+    //if signal changes wait ignorecalls until next update.
+    for(int i=0; i<5; i++) {
+        if(active(i)) {
+            if (old_in[i]!=probe_in(i)) {
+                rtapi_print_msg(RTAPI_MSG_DBG, "probe-in-%i changed to %i\n", i, probe_in(i));
+                if(ignores(i) == 0) {
+                    if(motion_type_in == 5 || !probe_in(i))
+                        probe_out(i)=probe_in(i);
+                    rtapi_print_msg(RTAPI_MSG_DBG, "probe-out-%i changed to %i, set ignores.\n", i, probe_out(i));
+                }    
+                //if signal changes reset ignores, even if ignores is not null
+                // TODO?: make configurable via "retriggerable" bit.
+                ignores(i)=ignorecalls(i);
+            }
+        }
+    }
+
+    for(int i=0; i<5; i++) {
+        if(active(i)) {
+            if(ignores(i) > 0) {
+                //rtapi_print_msg(RTAPI_MSG_INFO, "ignores[%i]: %i. lowering\n", i, ignores(i));
+                ignores(i)--;
+                // take the current value to out, if ignores are over
+                if(ignores(i)==0) {
+                    rtapi_print_msg(RTAPI_MSG_DBG, "probe-out-%i is taken to out\n", i);
+                    if (probe_out(i) != probe_in(i)) {
+                        if(motion_type_in == 5 || !probe_in(i))
+                            probe_out(i)=probe_in(i);
+                        ignores(i)=ignorecalls(i);
+                    }
+                }
+            }
+        } else {
+            // filter inactive
+            probe_out(i)=probe_in(i);
+        }
+
+        //unfiltered - only motion-type debug-output
+        if(motion_type_in == 5) {
+            type5_out(i)=probe_in(i);
+        } else {
+            type5_out(i)=false;
+        }
+    }
+
+    if(motion_type_in == 0) {
+        // sonst stimmt wert bei t5-on evtl. nicht.
+        // TODO kommt vor t5 immer ein t0?
+        probet5single=probe_in(0);
+    }
+
+    if(motion_type_in != 5) {
+    //if(motion_type_old == 5 && motion_type_in != 5 || motion_type_old != 5 &&  motion_type_in == 5 ) {
+        // motion_type 5 ende oder start.
+        t5changed=false;
+    } 
+
+    if(t5changed==false && motion_type_in == 5 && probet5single != probe_in(0)) {
+        probet5single=probe_in(0);
+        t5changed=true;
+    } 
+
+
+    // old-werte aktualisieren:
+    motion_type_old = motion_type_in;
+
+    if(verbose != oldverbose) {
+        rtapi_set_msg_level(verbose);
+        oldverbose=verbose;
+    }
+
+
+    for(int i=0; i<5; i++) {
+        old_in[i]=probe_in(i);
+    }
+
+
+}

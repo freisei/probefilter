@@ -1,0 +1,16 @@
+loadrt probefilter names=pf1
+addf pf1 servo-thread
+
+setp pf1.ignorecalls-0 100
+
+net probefilter-0-active pf1.active-0
+net motion-type pf1.motion-type-in
+net probe-all pf1.probe-in-0
+net probe-t5-swiched-filtered pf1.probe-out-0
+net pf1t5out0 pf1.type5-out-0
+# net pf1t5out0 motion.probe-input
+net pf1t5single pf1.probet5single
+
+unlinkp motion.probe-input
+net pf1t5single motion.probe-input
+

@@ -1,0 +1,10 @@
+
+loadrt probebugtest names=pb1
+addf pb1 base-thread
+
+net motion-type pb1.motion-type-in
+
+unlinkp motion.probe-input
+net pb1testprobesig pb1.probe-out motion.probe-input
+
+

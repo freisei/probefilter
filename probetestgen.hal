@@ -1,0 +1,15 @@
+unloadrt probetestgen
+loadrt probetestgen
+addf probetestgen.0 base-thread
+setp probetestgen.0.testcase 1
+
+unloadrt probefilter
+loadrt probefilter names=pf1
+addf pf1 servo-thread
+
+setp pf1.ignorecalls-0 100
+
+net testsig1 probetestgen.0.probe-out-0 => pf1.probe-in-0
+net motsig1 probetestgen.0.motion-type-out => pf1.motion-type-in
+
+net probefilter-0-active => pf1.active-0
